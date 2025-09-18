@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { CameraIcon, StopCircleIcon, LanguagesIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/use-toast';
-
+import ScaleCalibrator from './ScaleCalibrator';
 interface LiveCameraProps {
   onCapture: (imageData: string) => void;
 }
@@ -20,39 +20,51 @@ const LiveCamera = ({ onCapture }: LiveCameraProps) => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [showScale, setShowScale] = useState(false);
+  const [pixelsPerCm, setPixelsPerCm] = useState<number | null>(null);
 
   const startCamera = async () => {
     try {
       setError(null);
-      
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'environment', // Use back camera on mobile
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }
-      });
-      
+
+      let stream: MediaStream | null = null;
+      try {
+        // Try back camera first
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        } as MediaStreamConstraints);
+      } catch (primaryErr) {
+        // Fallback to any available camera
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        } as MediaStreamConstraints);
+      }
+
       streamRef.current = stream;
-      
-      if (videoRef.current) {
+
+      if (videoRef.current && stream) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        await videoRef.current.play().catch(() => {});
         setIsStreaming(true);
       }
-      
+
       toast({
         title: t('captureSuccess'),
         description: t('cameraReady'),
       });
-      
     } catch (err) {
       console.error('Camera access error:', err);
       setError(t('cameraError'));
       toast({
-        title: "Camera Error",
+        title: 'Camera Error',
         description: t('cameraError'),
-        variant: "destructive"
+        variant: 'destructive',
       });
     }
   };
@@ -126,13 +138,18 @@ const LiveCamera = ({ onCapture }: LiveCameraProps) => {
         <div className="space-y-4">
           <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
             {isStreaming ? (
-              <video
-                ref={videoRef}
-                className="w-full h-full object-cover"
-                autoPlay
-                playsInline
-                muted
-              />
+              <>
+                <video
+                  ref={videoRef}
+                  className="w-full h-full object-cover"
+                  autoPlay
+                  playsInline
+                  muted
+                />
+                {showScale && (
+                  <ScaleCalibrator onScaleChange={(v) => setPixelsPerCm(v)} />
+                )}
+              </>
             ) : (
               <div className="w-full h-full flex items-center justify-center">
                 <div className="text-center">
@@ -167,6 +184,13 @@ const LiveCamera = ({ onCapture }: LiveCameraProps) => {
                   {t('capture')}
                 </Button>
                 <Button 
+                  onClick={() => setShowScale((s) => !s)}
+                  variant={showScale ? "default" : "outline"}
+                  size="lg"
+                >
+                  {showScale ? 'Hide Scale' : 'Scale'}
+                </Button>
+                <Button 
                   onClick={stopCamera}
                   variant="outline"
                   size="lg"
@@ -177,6 +201,9 @@ const LiveCamera = ({ onCapture }: LiveCameraProps) => {
               </>
             )}
           </div>
+          {pixelsPerCm && (
+            <p className="text-xs text-muted-foreground">{pixelsPerCm.toFixed(2)} px/cm calibrated</p>
+          )}
         </div>
       </Card>
 
