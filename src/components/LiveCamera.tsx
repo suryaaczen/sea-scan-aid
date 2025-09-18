@@ -19,6 +19,7 @@ const LiveCamera = ({ onCapture }: LiveCameraProps) => {
   
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
 
   const startCamera = async () => {
     try {
@@ -80,6 +81,7 @@ const LiveCamera = ({ onCapture }: LiveCameraProps) => {
     ctx.drawImage(video, 0, 0);
     
     const imageData = canvas.toDataURL('image/jpeg', 0.8);
+    setCapturedImage(imageData);
     onCapture(imageData);
     
     toast({
@@ -111,6 +113,9 @@ const LiveCamera = ({ onCapture }: LiveCameraProps) => {
             <SelectContent>
               <SelectItem value="en">English</SelectItem>
               <SelectItem value="es">Español</SelectItem>
+              <SelectItem value="te">తెలుగు</SelectItem>
+              <SelectItem value="hi">हिंदी</SelectItem>
+              <SelectItem value="ta">தமிழ்</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -174,6 +179,25 @@ const LiveCamera = ({ onCapture }: LiveCameraProps) => {
           </div>
         </div>
       </Card>
+
+      {/* Captured Image Preview */}
+      {capturedImage && (
+        <Card className="p-4">
+          <h3 className="text-lg font-semibold mb-3">{t('captureSuccess')}</h3>
+          <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+            <img 
+              src={capturedImage} 
+              alt="Captured fish" 
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+              <div className="bg-white/90 px-3 py-1 rounded-full text-sm font-medium">
+                Processing AI Detection...
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Hidden canvas for capture */}
       <canvas ref={canvasRef} className="hidden" />
